@@ -1,4 +1,5 @@
-"""Otomatik moderasyon: davet/bağlantı engeli, yasaklı kelime, spam."""
+"""Otomatik moderasyon: davet/bağlantı engeli, yasaklı kelime, spam, sadece-medya kanalı.
+Her filtre sunucu geneli veya kanal bazlı (/kanal ozellik) ayarlanabilir."""
 import re
 import time
 from collections import defaultdict
@@ -33,14 +34,25 @@ class AutoMod(commands.Cog):
             return  # Yetkililer filtrelerden muaf
 
         gid = message.guild.id
+        cid = utils.config_channel_id(message.channel)
         content = message.content or ""
-        reason = None
 
-        if db.flag(gid, "am_invites") and INVITE_RE.search(content):
+        # Sadece medya/bağlantı kanalı
+        if db.channel_option(gid, cid, "media_only"):
+            has_media = bool(message.attachments or message.stickers or message.embeds or URL_RE.search(content))
+            if not has_media:
+                await self._punish_message(message, "Bu kanalda sadece görsel, dosya veya bağlantı paylaşılabilir")
+                return
+
+        if db.channel_option(gid, cid, "automod") is False:
+            return
+
+        reason = None
+        if db.automod_flag(gid, cid, "am_invites") and INVITE_RE.search(content):
             reason = "Davet bağlantısı paylaşmak yasak"
-        elif db.flag(gid, "am_links") and URL_RE.search(content):
+        elif db.automod_flag(gid, cid, "am_links") and URL_RE.search(content):
             reason = "Bağlantı paylaşmak yasak"
-        elif db.flag(gid, "am_badwords"):
+        elif db.automod_flag(gid, cid, "am_badwords"):
             lowered = content.casefold()
             for word in db.list_badwords(gid):
                 if re.search(rf"(?<!\w){re.escape(word)}", lowered):
@@ -51,7 +63,7 @@ class AutoMod(commands.Cog):
             await self._punish_message(message, reason)
             return
 
-        if db.flag(gid, "am_spam"):
+        if db.automod_flag(gid, cid, "am_spam"):
             await self._check_spam(message)
 
     async def _punish_message(self, message, reason):
