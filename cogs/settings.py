@@ -1,4 +1,4 @@
-"""Yönetici ayarları: /ayar ..."""
+"""Yönetici ayarları: /ayar ...  (sunucu geneli)"""
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -10,7 +10,7 @@ KANAL_TURLERI = [
     app_commands.Choice(name="Karşılama kanalı", value="welcome_channel"),
     app_commands.Choice(name="Görüşürüz kanalı", value="goodbye_channel"),
     app_commands.Choice(name="Moderasyon log kanalı", value="log_channel"),
-    app_commands.Choice(name="Yapay zeka sohbet kanalı", value="ai_channel"),
+    app_commands.Choice(name="Seviye atlama duyuru kanalı", value="levelup_channel"),
 ]
 MESAJ_TURLERI = [
     app_commands.Choice(name="Karşılama mesajı", value="welcome_msg"),
@@ -73,7 +73,7 @@ class Settings(commands.GroupCog, group_name="ayar", group_description="Bot ayar
         text = f"✅ Otomatik rol: {rol.mention}" if rol else "🚫 Otomatik rol kapatıldı."
         await interaction.response.send_message(text, ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
 
-    @app_commands.command(name="otomod", description="Otomatik moderasyon özelliklerini açar/kapatır")
+    @app_commands.command(name="otomod", description="Otomatik moderasyonu sunucu genelinde açar/kapatır")
     @app_commands.describe(ozellik="Özellik", acik="Açık mı?")
     @app_commands.choices(ozellik=OTOMOD_TURLERI)
     @app_commands.checks.has_permissions(manage_guild=True)
@@ -81,7 +81,8 @@ class Settings(commands.GroupCog, group_name="ayar", group_description="Bot ayar
         db.set_setting(interaction.guild_id, ozellik.value, "1" if acik else None)
         await interaction.response.send_message(
             f"{'🟢 Açıldı' if acik else '🔴 Kapatıldı'}: **{ozellik.name}**\n"
-            "ℹ️ Mesajları yönet yetkisi olanlar filtrelerden muaftır.", ephemeral=True)
+            "ℹ️ Mesajları yönet yetkisi olanlar filtrelerden muaftır. Tek bir kanalda farklı olsun istersen "
+            "`/kanal ozellik` kullan.", ephemeral=True)
 
     @app_commands.command(name="kufur", description="Yasaklı kelime listesini yönetir")
     @app_commands.describe(islem="Ne yapılacak", kelime="Kelime (ekle/sil için)")
@@ -103,7 +104,17 @@ class Settings(commands.GroupCog, group_name="ayar", group_description="Bot ayar
             ok = db.remove_badword(gid, word)
             await interaction.response.send_message("🗑️ Silindi." if ok else "⚠️ Listede yok.", ephemeral=True)
 
-    @app_commands.command(name="goster", description="Mevcut ayarları gösterir")
+    @app_commands.command(name="kisilik", description="Yapay zekanın bu sunucudaki kişiliğini ayarlar")
+    @app_commands.describe(metin="Örn: 'Sen esprili bir korsansın.' Boş bırakırsan varsayılana döner.")
+    @app_commands.checks.has_permissions(manage_guild=True)
+    async def kisilik(self, interaction: discord.Interaction, metin: app_commands.Range[str, 10, 800] | None = None):
+        db.set_setting(interaction.guild_id, "ai_persona", metin)
+        if metin:
+            await interaction.response.send_message(f"🎭 Kişilik güncellendi:\n{metin}", ephemeral=True)
+        else:
+            await interaction.response.send_message("↩️ Kişilik varsayılana döndü.", ephemeral=True)
+
+    @app_commands.command(name="goster", description="Mevcut sunucu ayarlarını gösterir")
     @app_commands.checks.has_permissions(manage_guild=True)
     async def goster(self, interaction: discord.Interaction):
         gid = interaction.guild_id
@@ -118,12 +129,15 @@ class Settings(commands.GroupCog, group_name="ayar", group_description="Bot ayar
         role_id = db.get_setting(gid, "autorole")
         embed = discord.Embed(title="⚙️ Sunucu ayarları", color=discord.Color.blurple())
         embed.add_field(name="Kanallar", value="\n".join(f"**{ETIKETLER[k]}:** {ch(k)}" for k in
-                        ("welcome_channel", "goodbye_channel", "log_channel", "ai_channel")), inline=False)
-        embed.add_field(name="Otomod", value="\n".join(f"**{ETIKETLER[k]}:** {on(k)}" for k in
+                        ("welcome_channel", "goodbye_channel", "log_channel", "levelup_channel")), inline=False)
+        embed.add_field(name="Otomod (sunucu geneli)", value="\n".join(f"**{ETIKETLER[k]}:** {on(k)}" for k in
                         ("am_invites", "am_links", "am_spam", "am_badwords")), inline=False)
         embed.add_field(name="Otomatik rol", value=f"<@&{role_id}>" if role_id else "kapalı", inline=False)
         embed.add_field(name="Karşılama mesajı", value=db.get_setting(gid, "welcome_msg", DEFAULT_WELCOME)[:500], inline=False)
         embed.add_field(name="Görüşürüz mesajı", value=db.get_setting(gid, "goodbye_msg", DEFAULT_GOODBYE)[:500], inline=False)
+        persona = db.get_setting(gid, "ai_persona")
+        embed.add_field(name="Yapay zeka kişiliği", value=persona[:500] if persona else "varsayılan", inline=False)
+        embed.set_footer(text="Kanala özel ayarlar için: /kanal liste ve /kanal goster")
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
