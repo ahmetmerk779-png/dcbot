@@ -2,11 +2,59 @@
 from datetime import timedelta
 
 import discord
+from discord import app_commands
 
 import db
 
 MAX_TIMEOUT_MIN = 40320  # Discord sınırı: 28 gün
 WARN_AUTO_TIMEOUT_EVERY = 3  # Her 3. uyarıda otomatik 1 saat susturma
+
+
+class ChannelBlocked(app_commands.CheckFailure):
+    """Komut bu kanalda kapalı."""
+
+
+def config_channel_id(channel) -> int:
+    """Alt başlıklarda (thread) üst kanalın ayarları geçerli olur."""
+    return getattr(channel, "parent_id", None) or channel.id
+
+
+def channel_feature(feature: str, message: str):
+    """Komutu, kanal ayarında `feature` kapatılmış kanallarda engeller (yöneticiler muaf)."""
+
+    async def predicate(interaction: discord.Interaction) -> bool:
+        if interaction.guild is None or interaction.channel is None:
+            return True
+        user = interaction.user
+        if isinstance(user, discord.Member) and user.guild_permissions.manage_guild:
+            return True
+        if db.channel_option(interaction.guild.id, config_channel_id(interaction.channel), feature) is False:
+            raise ChannelBlocked(message)
+        return True
+
+    return app_commands.check(predicate)
+
+
+DANGEROUS_PERMS = (
+    "administrator", "manage_guild", "manage_roles", "manage_channels", "manage_messages",
+    "kick_members", "ban_members", "moderate_members", "manage_webhooks", "manage_nicknames",
+    "mention_everyone",
+)
+
+
+def unsafe_role_reason(guild: discord.Guild, role: discord.Role):
+    """Buton/market/seviye ödülü olarak verilebilir mi? Verilemezse nedenini döndürür."""
+    if role.is_default():
+        return "@everyone rolü kullanılamaz."
+    if role.managed:
+        return "Bu rol bir bota/entegrasyona ait, verilemez."
+    if role >= guild.me.top_role:
+        return "Bu rol benim rolümden yüksek veya eşit. Bot rolünü rol listesinde yukarı taşı."
+    perms = role.permissions
+    bad = [name for name in DANGEROUS_PERMS if getattr(perms, name, False)]
+    if bad:
+        return "Yetkili rolleri otomatik verilemez (tehlikeli izinler: " + ", ".join(bad[:3]) + ")."
+    return None
 
 
 def _audit(actor, reason: str) -> str:
