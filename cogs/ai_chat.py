@@ -108,8 +108,8 @@ class AIChat(commands.Cog):
         self.last_used = {}
 
     # ---------- Yardımcılar ----------
-    def build_messages(self, channel_id, extra=None):
-        system = BASE_PROMPT + "\n\n" + RULES + (("\n\n" + extra) if extra else "")
+    def build_messages(self, channel_id, extra=None, persona=None):
+        system = (persona or BASE_PROMPT) + "\n\n" + RULES + (("\n\n" + extra) if extra else "")
         msgs = [{"role": "system", "content": system}]
         for role, content in self.history[channel_id]:
             msgs.append({"role": role, "content": content})
@@ -229,8 +229,12 @@ class AIChat(commands.Cog):
         guild = message.guild
         bot_user = self.bot.user
         mentioned = bot_user in message.mentions
-        in_ai_channel = bool(guild) and db.get_channel_id(guild.id, "ai_channel") == message.channel.id
-        if not (guild is None or mentioned or in_ai_channel):
+        mode = "always"  # DM'de her zaman cevap verir
+        if guild is not None:
+            mode = db.channel_option(guild.id, utils.config_channel_id(message.channel), "ai")
+        if mode == "off":
+            return  # Bu kanalda yapay zeka kapalı (/kanal ai)
+        if not (guild is None or mentioned or mode == "always"):
             return
 
         now = time.monotonic()
@@ -255,7 +259,8 @@ class AIChat(commands.Cog):
                 tools, extra = allowed, MOD_RULES
                 targets = {u.id: u for u in message.mentions if u.id != bot_user.id}
 
-        msgs = self.build_messages(cid, extra)
+        persona = db.get_setting(guild.id, "ai_persona") if guild is not None else None
+        msgs = self.build_messages(cid, extra, persona)
         if tools and targets:
             listing = ", ".join(f"{u.display_name}=id:{uid}" for uid, u in targets.items())
             msgs[-1] = {"role": "user", "content": msgs[-1]["content"] + f"\n[Etiketlenenler: {listing}]"}
@@ -316,18 +321,45 @@ class AIChat(commands.Cog):
             inline=False,
         )
         embed.add_field(
-            name="🛡️ Moderasyon komutları",
+            name="🛡️ Moderasyon",
             value="`/ban` `/unban` `/kick` `/sustur` `/sustur-kaldir` `/uyar` `/uyarilar` `/uyari-sil` "
                   "`/uyari-temizle` `/temizle` `/yavas-mod` `/kilitle` `/kilidi-ac`",
             inline=False,
         )
         embed.add_field(
-            name="⚙️ Yönetici ayarları",
-            value="`/ayar kanal` `/ayar mesaj` `/ayar otorol` `/ayar otomod` `/ayar kufur` `/ayar goster` "
-                  "`/sifirla`",
+            name="📍 Kanal bazlı ayarlar (yönetici)",
+            value="`/kanal ai` `/kanal ozellik` `/kanal sifirla` `/kanal goster` `/kanal liste`\n"
+                  "Her kanalda yapay zeka, XP, ekonomi, otomod ve sadece-medya ayrı ayarlanır.",
             inline=False,
         )
-        embed.set_footer(text="Sıradan sohbet mesajların veritabanına kaydedilmez.")
+        embed.add_field(
+            name="⚙️ Sunucu ayarları (yönetici)",
+            value="`/ayar kanal` `/ayar mesaj` `/ayar otorol` `/ayar otomod` `/ayar kufur` `/ayar kisilik` "
+                  "`/ayar goster` `/sifirla` `/veritabani durum|kaydet|yedek|geri-yukle`",
+            inline=False,
+        )
+        embed.add_field(
+            name="📈 Seviye",
+            value="`/seviye` `/liderlik` `/seviye-rol` `/xp-ayarla`",
+            inline=False,
+        )
+        embed.add_field(
+            name="🪙 Ekonomi",
+            value="`/bakiye` `/gunluk` `/calis` `/ver` `/yazitura` `/slot` `/zenginler` `/market`",
+            inline=False,
+        )
+        embed.add_field(
+            name="🎫 Paneller ve çekiliş",
+            value="`/panel ticket` `/panel ticket-ayar` `/panel rol` `/cekilis baslat|bitir|yeniden|liste`",
+            inline=False,
+        )
+        embed.add_field(
+            name="🧰 Araçlar",
+            value="`/ping` `/sunucu` `/kullanici` `/avatar` `/anket` `/hatirlat` `/afk` `/zar` `/sec` "
+                  "`/duyuru` `/rol-ver` `/rol-al` `/takma-ad`",
+            inline=False,
+        )
+        embed.set_footer(text="Veriler sunucundaki gizli #bot-veritabani kanalında saklanır. Sıradan sohbet mesajları kaydedilmez.")
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
