@@ -22,6 +22,7 @@ CHANNEL_DEFAULTS = {
     "ai": "mention",      # off | mention | always
     "xp": True,
     "economy": True,
+    "games": True,
     "automod": True,
     "media_only": False,
 }
