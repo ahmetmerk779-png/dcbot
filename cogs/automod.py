@@ -9,6 +9,7 @@ import discord
 from discord.ext import commands
 
 import db
+import helpers
 import utils
 
 INVITE_RE = re.compile(r"(discord\.gg|discord(?:app)?\.com/invite)/\w+", re.I)
@@ -17,6 +18,7 @@ URL_RE = re.compile(r"https?://\S+|www\.\S+", re.I)
 SPAM_COUNT = 6      # bu kadar mesaj
 SPAM_WINDOW = 6.0   # bu kadar saniye içinde
 SPAM_TIMEOUT_MIN = 5
+MENTION_LIMIT = 5   # tek mesajda bu kadar etiket = ihlal
 
 
 class AutoMod(commands.Cog):
@@ -58,6 +60,12 @@ class AutoMod(commands.Cog):
                 if re.search(rf"(?<!\w){re.escape(word)}", lowered):
                     reason = "Yasaklı kelime kullanımı"
                     break
+
+        if reason is None and db.automod_flag(gid, cid, "am_mentions"):
+            if len(message.mentions) + len(message.role_mentions) >= MENTION_LIMIT:
+                reason = "Çok fazla kişi/rol etiketlemek yasak"
+        if reason is None and db.automod_flag(gid, cid, "am_caps") and helpers.is_shouting(content):
+            reason = "Aşırı büyük harf kullanımı"
 
         if reason:
             await self._punish_message(message, reason)
