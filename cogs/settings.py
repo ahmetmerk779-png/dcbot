@@ -21,6 +21,8 @@ OTOMOD_TURLERI = [
     app_commands.Choice(name="Tüm bağlantılar", value="am_links"),
     app_commands.Choice(name="Spam", value="am_spam"),
     app_commands.Choice(name="Yasaklı kelimeler", value="am_badwords"),
+    app_commands.Choice(name="Çok fazla etiket", value="am_mentions"),
+    app_commands.Choice(name="BÜYÜK HARF", value="am_caps"),
 ]
 ISLEMLER = [
     app_commands.Choice(name="Ekle", value="ekle"),
@@ -131,7 +133,7 @@ class Settings(commands.GroupCog, group_name="ayar", group_description="Bot ayar
         embed.add_field(name="Kanallar", value="\n".join(f"**{ETIKETLER[k]}:** {ch(k)}" for k in
                         ("welcome_channel", "goodbye_channel", "log_channel", "levelup_channel")), inline=False)
         embed.add_field(name="Otomod (sunucu geneli)", value="\n".join(f"**{ETIKETLER[k]}:** {on(k)}" for k in
-                        ("am_invites", "am_links", "am_spam", "am_badwords")), inline=False)
+                        ("am_invites", "am_links", "am_spam", "am_badwords", "am_mentions", "am_caps")), inline=False)
         embed.add_field(name="Otomatik rol", value=f"<@&{role_id}>" if role_id else "kapalı", inline=False)
         embed.add_field(name="Karşılama mesajı", value=db.get_setting(gid, "welcome_msg", DEFAULT_WELCOME)[:500], inline=False)
         embed.add_field(name="Görüşürüz mesajı", value=db.get_setting(gid, "goodbye_msg", DEFAULT_GOODBYE)[:500], inline=False)
