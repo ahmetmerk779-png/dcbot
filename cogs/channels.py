@@ -14,16 +14,19 @@ AI_MODLARI = [
 OZELLIKLER = [
     app_commands.Choice(name="XP / seviye kazanımı", value="xp"),
     app_commands.Choice(name="Ekonomi komutları (/bakiye, /slot ...)", value="economy"),
+    app_commands.Choice(name="Oyun komutları (/tkm, /sayma ...)", value="games"),
     app_commands.Choice(name="Otomod (genel anahtar)", value="automod"),
     app_commands.Choice(name="Sadece medya/bağlantı kanalı", value="media_only"),
     app_commands.Choice(name="Davet bağlantısı filtresi", value="am_invites"),
     app_commands.Choice(name="Bağlantı filtresi", value="am_links"),
     app_commands.Choice(name="Spam filtresi", value="am_spam"),
     app_commands.Choice(name="Yasaklı kelime filtresi", value="am_badwords"),
+    app_commands.Choice(name="Çok etiket filtresi", value="am_mentions"),
+    app_commands.Choice(name="BÜYÜK HARF filtresi", value="am_caps"),
 ]
 SIFIRLA_SECENEKLERI = [app_commands.Choice(name="Yapay zeka modu", value="ai")] + OZELLIKLER
 AI_ETIKET = {"off": "🔴 kapalı", "mention": "🟡 sadece etiketlenince", "always": "🟢 her mesaja cevap"}
-AUTOMOD_KEYS = ("am_invites", "am_links", "am_spam", "am_badwords")
+AUTOMOD_KEYS = ("am_invites", "am_links", "am_spam", "am_badwords", "am_mentions", "am_caps")
 ADLAR = {c.value: c.name for c in SIFIRLA_SECENEKLERI}
 
 
@@ -42,6 +45,7 @@ def describe(guild_id: int, channel_id: int) -> str:
         f"🧠 **Yapay zeka:** {AI_ETIKET.get(ai, ai)}{tag('ai')}",
         f"📈 **XP kazanımı:** {onoff(db.channel_option(guild_id, channel_id, 'xp'))}{tag('xp')}",
         f"🪙 **Ekonomi komutları:** {onoff(db.channel_option(guild_id, channel_id, 'economy'))}{tag('economy')}",
+        f"🎮 **Oyun komutları:** {onoff(db.channel_option(guild_id, channel_id, 'games'))}{tag('games')}",
         f"🖼️ **Sadece medya/bağlantı:** {onoff(db.channel_option(guild_id, channel_id, 'media_only'))}{tag('media_only')}",
     ]
     automod_on = db.channel_option(guild_id, channel_id, "automod") is not False
